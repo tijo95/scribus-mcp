@@ -922,19 +922,33 @@ class TestCmdMasterPages:
 
 
 class TestCmdRunScript:
-    def test_returns_result(self):
+    def test_returns_result(self, monkeypatch):
+        monkeypatch.setenv("SCRIBUS_ALLOW_SCRIPT", "1")
         _create_doc()
         result = cmd_run_script({"code": "result = 42"})
         assert result["result"] == 42
 
-    def test_none_result(self):
+    def test_none_result(self, monkeypatch):
+        monkeypatch.setenv("SCRIBUS_ALLOW_SCRIPT", "1")
         _create_doc()
         result = cmd_run_script({"code": "x = 1"})
         assert result["result"] is None
 
-    def test_non_serializable_becomes_string(self):
+    def test_non_serializable_becomes_string(self, monkeypatch):
+        monkeypatch.setenv("SCRIBUS_ALLOW_SCRIPT", "1")
         result = cmd_run_script({"code": "result = object()"})
         assert isinstance(result["result"], str)
+
+    def test_disabled_by_default(self, monkeypatch):
+        monkeypatch.delenv("SCRIBUS_ALLOW_SCRIPT", raising=False)
+        with pytest.raises(PermissionError, match="SCRIBUS_ALLOW_SCRIPT"):
+            cmd_run_script({"code": "result = 1"})
+
+    def test_enabled_flag_variants(self, monkeypatch):
+        for val in ("true", "yes", "on"):
+            monkeypatch.setenv("SCRIBUS_ALLOW_SCRIPT", val)
+            result = cmd_run_script({"code": "result = 7"})
+            assert result["result"] == 7
 
 
 class TestCmdSaveDocument:

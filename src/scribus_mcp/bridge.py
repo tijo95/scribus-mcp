@@ -557,8 +557,33 @@ def cmd_get_document_info(params):
     }
 
 
+def _script_allowed() -> bool:
+    """Return True if raw script execution is enabled via environment.
+
+    ``run_script`` executes arbitrary Python inside the Scribus interpreter,
+    so it is disabled by default. Set ``SCRIBUS_ALLOW_SCRIPT`` to a truthy
+    value (1, true, yes, on; case-insensitive) to enable it.
+    """
+    return os.environ.get("SCRIBUS_ALLOW_SCRIPT", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def cmd_run_script(params):
-    """Execute arbitrary Python code inside the Scribus interpreter."""
+    """Execute arbitrary Python code inside the Scribus interpreter.
+
+    Disabled by default; enable it by setting the ``SCRIBUS_ALLOW_SCRIPT``
+    environment variable (e.g. ``SCRIBUS_ALLOW_SCRIPT=1``) before Scribus is
+    launched.
+    """
+    if not _script_allowed():
+        raise PermissionError(
+            "run_script is disabled for safety. Set SCRIBUS_ALLOW_SCRIPT=1 "
+            "to enable it."
+        )
     code = params["code"]
     namespace = {"scribus": scribus, "result": None}
     exec(code, namespace)

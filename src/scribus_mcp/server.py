@@ -11,7 +11,6 @@ from mcp.server.fastmcp import FastMCP
 
 from .client import ScribusClient
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("Scribus")
@@ -24,6 +23,21 @@ _dirty = False
 _dirty_lock = threading.Lock()
 _save_timer: threading.Timer | None = None
 _SAVE_INTERVAL = int(os.environ.get("SCRIBUS_SAVE_INTERVAL", 30))
+
+
+def _script_allowed() -> bool:
+    """Return True if raw script execution is enabled via environment.
+
+    ``run_script`` executes arbitrary Python inside the Scribus interpreter,
+    so it is disabled by default. Set ``SCRIBUS_ALLOW_SCRIPT`` to a truthy
+    value (1, true, yes, on; case-insensitive) to enable it.
+    """
+    return os.environ.get("SCRIBUS_ALLOW_SCRIPT", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _get_client() -> ScribusClient:
@@ -1360,10 +1374,18 @@ def run_script(code: str) -> str:
     The `scribus` module is available in the execution namespace.
     Set a `result` variable to return data.
 
+    This tool is disabled by default for safety. Enable it by setting the
+    SCRIBUS_ALLOW_SCRIPT environment variable (e.g. SCRIBUS_ALLOW_SCRIPT=1).
+
     Args:
         code: Python code to execute inside Scribus
 
     """
+    if not _script_allowed():
+        raise RuntimeError(
+            "run_script is disabled for safety. Set SCRIBUS_ALLOW_SCRIPT=1 "
+            "in the server environment to enable it."
+        )
     client = _get_client()
     result = client.send_command("run_script", {"code": code})
     _mark_dirty()
@@ -1376,6 +1398,7 @@ def run_script(code: str) -> str:
 
 def main():
     """Entry point for the MCP server."""
+    logging.basicConfig(level=logging.INFO)
     mcp.run()
 
 

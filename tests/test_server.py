@@ -394,15 +394,23 @@ class TestGetDocumentInfo:
 
 
 class TestRunScript:
-    def test_with_result(self, mock_client):
+    def test_with_result(self, mock_client, monkeypatch):
+        monkeypatch.setenv("SCRIBUS_ALLOW_SCRIPT", "1")
         mock_client.send_command.return_value = {"result": 42}
         result = run_script("result = 21 * 2")
         assert "42" in result
 
-    def test_without_result(self, mock_client):
+    def test_without_result(self, mock_client, monkeypatch):
+        monkeypatch.setenv("SCRIBUS_ALLOW_SCRIPT", "1")
         mock_client.send_command.return_value = {"result": None}
         result = run_script("scribus.gotoPage(1)")
         assert "successfully" in result
+
+    def test_disabled_by_default(self, mock_client, monkeypatch):
+        monkeypatch.delenv("SCRIBUS_ALLOW_SCRIPT", raising=False)
+        with pytest.raises(RuntimeError, match="SCRIBUS_ALLOW_SCRIPT"):
+            run_script("result = 1")
+        mock_client.send_command.assert_not_called()
 
 
 class TestOpenDocument:
