@@ -510,6 +510,25 @@ def add_page(
 
 
 @mcp.tool()
+def save_document(file_path: str | None = None) -> str:
+    """Save the current document.
+
+    Args:
+        file_path: Optional output path. If omitted, saves to the last known
+            path (or the workspace default).
+
+    """
+    client = _get_client()
+    params: dict = {}
+    if file_path is not None:
+        params["file_path"] = file_path
+    client.send_command("save_document", params)
+    if file_path is not None:
+        return f"Document saved to {file_path}."
+    return "Document saved to workspace."
+
+
+@mcp.tool()
 def export_pdf(
     file_path: str,
     quality: str = "press",
