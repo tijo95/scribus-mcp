@@ -91,6 +91,18 @@ def _go_to_page(page):
         scribus.gotoPage(int(page))
 
 
+def _require_file(path):
+    """Return *path* if it points to an existing file, else raise ValueError.
+
+    Guards every handler that hands a file path to Scribus (``loadImage``,
+    ``placeSVG``, ``openDoc``) so a missing file surfaces as a clear bridge
+    error instead of an opaque failure deep inside the Scribus API.
+    """
+    if not os.path.isfile(path):
+        raise ValueError(f"File not found: {path}")
+    return path
+
+
 def cmd_create_document(params):
     """Create new document with given dimensions, margins, and page count."""
     width = params.get("width", 210)
@@ -237,6 +249,7 @@ def cmd_place_image(params):
     page = params.get("page")
 
     _go_to_page(page)
+    _require_file(file_path)
 
     frame_name = scribus.createImage(x, y, w, h)
     scribus.loadImage(file_path, frame_name)
@@ -683,6 +696,7 @@ def cmd_list_master_pages(params):
 def cmd_open_document(params):
     """Open an existing .sla document and return its structure."""
     file_path = params["file_path"]
+    _require_file(file_path)
     if scribus.haveDoc():
         scribus.closeDoc()
     scribus.openDoc(file_path)
@@ -1078,6 +1092,7 @@ def cmd_place_svg(params):
     page = params.get("page")
 
     _go_to_page(page)
+    _require_file(file_path)
     name = scribus.placeSVG(file_path, x, y)
     return {"name": name, "file_path": file_path}
 

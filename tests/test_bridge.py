@@ -297,36 +297,47 @@ class TestCmdPlaceText:
         assert obj["style"] == "Body"
 
 
+def _make_path(tmp_path, name):
+    """Create a tiny placeholder file and return its absolute path."""
+    p = tmp_path / name
+    p.write_bytes(b"0")
+    return str(p)
+
+
 class TestCmdPlaceImage:
-    def test_basic(self):
+    def test_basic(self, tmp_path):
         _create_doc()
-        result = cmd_place_image({"x": 10, "y": 20, "w": 100, "h": 100, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        result = cmd_place_image({"x": 10, "y": 20, "w": 100, "h": 100, "file_path": p})
         assert "name" in result
         obj = mock_scribus._doc.objects[result["name"]]
-        assert obj["image"] == "/img.png"
+        assert obj["image"] == p
 
-    def test_scale_default(self):
+    def test_scale_default(self, tmp_path):
         _create_doc()
-        result = cmd_place_image({"x": 0, "y": 0, "w": 50, "h": 50, "file_path": "/a.png"})
+        p = _make_path(tmp_path, "a.png")
+        result = cmd_place_image({"x": 0, "y": 0, "w": 50, "h": 50, "file_path": p})
         assert result["name"].startswith("img_")
 
-    def test_scale_disabled(self):
+    def test_scale_disabled(self, tmp_path):
         _create_doc()
+        p = _make_path(tmp_path, "a.png")
         result = cmd_place_image(
             {
                 "x": 0,
                 "y": 0,
                 "w": 50,
                 "h": 50,
-                "file_path": "/a.png",
+                "file_path": p,
                 "scale_to_frame": False,
             }
         )
         assert "name" in result
 
-    def test_page_navigation(self):
+    def test_page_navigation(self, tmp_path):
         _create_doc(pages=2)
-        cmd_place_image({"x": 0, "y": 0, "w": 50, "h": 50, "file_path": "/a.png", "page": 2})
+        p = _make_path(tmp_path, "a.png")
+        cmd_place_image({"x": 0, "y": 0, "w": 50, "h": 50, "file_path": p, "page": 2})
         assert mock_scribus._doc.current_page == 2
 
 
@@ -467,28 +478,32 @@ class TestCmdModifyObject:
 
 
 class TestCmdOpenDocument:
-    def test_empty_doc(self):
-        result = cmd_open_document({"file_path": "/tmp/test.sla"})
-        assert result["file_path"] == "/tmp/test.sla"
+    def test_empty_doc(self, tmp_path):
+        p = _make_path(tmp_path, "test.sla")
+        result = cmd_open_document({"file_path": p})
+        assert result["file_path"] == p
         assert result["page_count"] == 1
         assert len(result["objects"]) == 0
         assert mock_scribus._doc is not None
 
-    def test_closes_existing_first(self):
+    def test_closes_existing_first(self, tmp_path):
         _create_doc()
         assert mock_scribus._doc is not None
-        result = cmd_open_document({"file_path": "/tmp/other.sla"})
-        assert result["file_path"] == "/tmp/other.sla"
+        p = _make_path(tmp_path, "other.sla")
+        result = cmd_open_document({"file_path": p})
+        assert result["file_path"] == p
         assert mock_scribus._doc is not None
 
-    def test_no_prior_doc(self):
+    def test_no_prior_doc(self, tmp_path):
         # No doc exists — should open without error
         assert mock_scribus._doc is None
-        result = cmd_open_document({"file_path": "/tmp/new.sla"})
+        p = _make_path(tmp_path, "new.sla")
+        result = cmd_open_document({"file_path": p})
         assert result["page_count"] == 1
 
-    def test_pre_registered_document(self):
-        mock_scribus._register_mock_document("/tmp/layout.sla", {
+    def test_pre_registered_document(self, tmp_path):
+        p = _make_path(tmp_path, "layout.sla")
+        mock_scribus._register_mock_document(p, {
             "size": (245, 290),
             "margins": (20, 15, 17, 20),
             "num_pages": 2,
@@ -500,7 +515,7 @@ class TestCmdOpenDocument:
                 {"name": "logo", "type": 2, "page": 1, "x": 50, "y": 80, "w": 100, "h": 100},
             ],
         })
-        result = cmd_open_document({"file_path": "/tmp/layout.sla"})
+        result = cmd_open_document({"file_path": p})
         assert result["page_count"] == 2
         assert len(result["objects"]) == 2
         assert result["objects"][0]["name"] == "title_frame"
@@ -528,9 +543,10 @@ class TestCmdGetObjectProperties:
         assert result["font_size"] == 14
         assert result["text_color"] == "Black"
 
-    def test_image_frame(self):
+    def test_image_frame(self, tmp_path):
         _create_doc()
-        frame = cmd_place_image({"x": 5, "y": 10, "w": 100, "h": 80, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        frame = cmd_place_image({"x": 5, "y": 10, "w": 100, "h": 80, "file_path": p})
         result = cmd_get_object_properties({"name": frame["name"]})
         assert result["type"] == "image"
         assert result["x"] == 5
@@ -1522,16 +1538,18 @@ class TestCmdStyleTable:
 
 
 class TestCmdControlImage:
-    def test_get(self):
+    def test_get(self, tmp_path):
         _create_doc()
-        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": p})
         result = cmd_control_image({"name": img["name"], "action": "get"})
         assert result["offset_x"] == 0.0
         assert result["scale_x"] == 1.0
 
-    def test_set_offset(self):
+    def test_set_offset(self, tmp_path):
         _create_doc()
-        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": p})
         cmd_control_image({
             "name": img["name"], "action": "set_offset",
             "offset_x": 10, "offset_y": 20,
@@ -1540,9 +1558,10 @@ class TestCmdControlImage:
         assert obj["image_offset_x"] == 10
         assert obj["image_offset_y"] == 20
 
-    def test_set_scale(self):
+    def test_set_scale(self, tmp_path):
         _create_doc()
-        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": p})
         cmd_control_image({
             "name": img["name"], "action": "set_scale",
             "scale_x": 0.5, "scale_y": 0.5,
@@ -1550,17 +1569,19 @@ class TestCmdControlImage:
         obj = mock_scribus._doc.objects[img["name"]]
         assert obj["image_scale_x"] == 0.5
 
-    def test_fit_frame_to_image(self):
+    def test_fit_frame_to_image(self, tmp_path):
         _create_doc()
-        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": p})
         result = cmd_control_image({
             "name": img["name"], "action": "fit_frame_to_image",
         })
         assert result["action"] == "fit_frame_to_image"
 
-    def test_unknown_action_raises(self):
+    def test_unknown_action_raises(self, tmp_path):
         _create_doc()
-        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": "/img.png"})
+        p = _make_path(tmp_path, "img.png")
+        img = cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": p})
         with pytest.raises(ValueError, match="Unknown control_image action"):
             cmd_control_image({"name": img["name"], "action": "fly"})
 
@@ -1604,17 +1625,43 @@ class TestCmdDuplicateObjects:
 
 
 class TestCmdPlaceSvg:
-    def test_basic(self):
+    def test_basic(self, tmp_path):
         _create_doc()
-        result = cmd_place_svg({"file_path": "/icon.svg", "x": 10, "y": 20})
+        p = _make_path(tmp_path, "icon.svg")
+        result = cmd_place_svg({"file_path": p, "x": 10, "y": 20})
         assert "name" in result
-        assert result["file_path"] == "/icon.svg"
+        assert result["file_path"] == p
         obj = mock_scribus._doc.objects[result["name"]]
-        assert obj["svg_path"] == "/icon.svg"
+        assert obj["svg_path"] == p
         assert obj["x"] == 10
         assert obj["y"] == 20
 
-    def test_with_page(self):
+    def test_with_page(self, tmp_path):
         _create_doc(pages=2)
-        cmd_place_svg({"file_path": "/icon.svg", "x": 0, "y": 0, "page": 2})
+        p = _make_path(tmp_path, "icon.svg")
+        cmd_place_svg({"file_path": p, "x": 0, "y": 0, "page": 2})
         assert mock_scribus._doc.current_page == 2
+
+
+class TestFileValidation:
+    def test_place_image_missing_file_raises(self, tmp_path):
+        _create_doc()
+        missing = str(tmp_path / "does_not_exist.png")
+        with pytest.raises(ValueError, match="File not found"):
+            cmd_place_image({"x": 0, "y": 0, "w": 100, "h": 100, "file_path": missing})
+
+    def test_place_svg_missing_file_raises(self, tmp_path):
+        _create_doc()
+        missing = str(tmp_path / "does_not_exist.svg")
+        with pytest.raises(ValueError, match="File not found"):
+            cmd_place_svg({"file_path": missing, "x": 0, "y": 0})
+
+    def test_open_document_missing_file_raises(self, tmp_path):
+        missing = str(tmp_path / "does_not_exist.sla")
+        with pytest.raises(ValueError, match="File not found"):
+            cmd_open_document({"file_path": missing})
+
+    def test_require_file_ok(self, tmp_path):
+        from scribus_mcp.bridge import _require_file
+        p = _make_path(tmp_path, "ok.png")
+        assert _require_file(p) == p
