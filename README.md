@@ -208,7 +208,7 @@ Add a `"scribus"` entry to the `mcpServers` object in your config file:
 
 | Tool | What it does |
 |------|-------------|
-| `run_script` | Execute raw Scribus Python. Params: `code`. Set `result` variable to return data |
+| `run_script` | Execute raw Scribus Python. Params: `code`. Set `result` variable to return data. **Disabled by default**; enable with `SCRIBUS_ALLOW_SCRIPT=1` |
 | `get_font_names` | List all available font names in Scribus |
 
 ## Example Prompts
@@ -234,6 +234,10 @@ uv run pytest tests/ -v
 npx @modelcontextprotocol/inspector uv run scribus-mcp
 ```
 
+### CI
+
+Runs `ruff check` and `pytest` on every push/PR to `main` (Python 3.10-3.12).
+
 ## Configuration
 
 ### Custom Scribus Path
@@ -258,13 +262,14 @@ set SCRIBUS_EXECUTABLE=C:\path\to\Scribus.exe
 $env:SCRIBUS_EXECUTABLE = "C:\path\to\Scribus.exe"
 ```
 
-### Timeouts and Save Interval
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SCRIBUS_COMMAND_TIMEOUT` | `30` | Seconds to wait for a command response before killing Scribus |
 | `SCRIBUS_STARTUP_TIMEOUT` | `60` | Seconds to wait for the ready sentinel at startup |
 | `SCRIBUS_SAVE_INTERVAL` | `30` | Seconds between deferred auto-saves. Set to `0` to save after every command (legacy behavior) |
+| `SCRIBUS_ALLOW_SCRIPT` | `disabled` | Set to `1` to enable the `run_script` tool (arbitrary Python execution in Scribus). Off by default for safety |
 
 ## How It Works
 
